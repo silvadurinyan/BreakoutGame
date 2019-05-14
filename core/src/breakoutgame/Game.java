@@ -50,7 +50,8 @@ public class Game implements Screen {
     Sprite back;
     Array<PhysicalSprite> bricks;
     Array<Body> bumpers;
-  
+    PhysicalSprite paddle;
+
     Array<PhysicalSprite> toBeDestroyed;
 
     // more game state
@@ -79,11 +80,12 @@ public class Game implements Screen {
         padTex = new Texture("core/image/paddle.png");
         ballTex = new Texture("core/image/ball.png");
         brickTex = new Texture("core/image/brick.png");
-        background=new Texture("core/image/background.png");
+        background = new Texture("core/image/background.png");
         back = new Sprite(background);
         back.setPosition(0,0);
 
         createEdges();
+        createPaddle();
         createBricks();
     }
 
@@ -114,7 +116,7 @@ public class Game implements Screen {
             return;
         }
 
-
+        paddle.update();
         
         for (PhysicalSprite brick : bricks) {
             brick.update();
@@ -124,8 +126,9 @@ public class Game implements Screen {
 
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-        game.batch.begin(); game.batch.draw(background,back.getX(),back.getY());
-     
+        game.batch.begin();
+        game.batch.draw(background, back.getX(), back.getY());
+        paddle.draw(game.batch);
         for (PhysicalSprite brick : bricks) {
             brick.draw(game.batch);
 
@@ -155,6 +158,7 @@ public class Game implements Screen {
 
     @Override
     public void dispose() {
+       
         brickTex.dispose();
         background.dispose();
 
@@ -191,7 +195,26 @@ public class Game implements Screen {
     }
 
 
-    
+
+
+    private void createPaddle() {
+        float x = (screenWidth / 2) - (padTex.getWidth() / 2);
+        float y = 3;
+        PhysicalSprite.Defs defs = PhysicalSprite.Defs.fromScreenCoordinates(
+                padTex, x, y, WORLD_SCALE);
+
+        defs.bodyDef.type = BodyType.DynamicBody;
+        defs.bodyDef.fixedRotation = true;
+
+        defs.fixtureDef.density = 0.1f;
+        defs.fixtureDef.filter.categoryBits = PADDLE;
+        defs.fixtureDef.filter.maskBits = (BALL | WORLD_BOUND);
+
+        paddle = new PhysicalSprite(defs, world);
+        paddle.body.setLinearDamping(2.0f);
+    }
+
+ 
 
    
     private void createEdges() {
