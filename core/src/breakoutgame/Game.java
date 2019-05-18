@@ -50,6 +50,7 @@ public class Game implements Screen {
     Sprite back;
     Array<PhysicalSprite> bricks;
     Array<Body> bumpers;
+    PhysicalSprite ball;
     PhysicalSprite paddle;
 
     Array<PhysicalSprite> toBeDestroyed;
@@ -82,10 +83,54 @@ public class Game implements Screen {
         brickTex = new Texture("core/image/brick.png");
         background = new Texture("core/image/background.png");
         back = new Sprite(background);
-        back.setPosition(0,0);
+        back.setPosition(0, 0);
 
+
+        bumpers = new Array<Body>();
+        bricks = new Array<PhysicalSprite>();
+        toBeDestroyed = new Array<PhysicalSprite>();
+
+       
+       world = new World(new Vector2(0, 0), true);
+        world.setContactListener(new ContactListener() {
+
+            
+            @Override
+            public void beginContact(Contact contact) {
+                Fixture fixa = contact.getFixtureA();
+                Fixture fixb = contact.getFixtureB();
+
+               
+                for (PhysicalSprite brick : bricks) {
+                    if ((fixa == brick.fixture && fixb == ball.fixture)
+                            || (fixa == ball.fixture && fixb == brick.fixture)) {
+                        toBeDestroyed.add(brick);
+                    }
+                }
+
+                if ((fixa == ballKiller && fixb == ball.fixture)
+                        || (fixa == ball.fixture && fixb == ballKiller)) {
+                    resetBall = true;
+                }
+            }
+
+            @Override
+            public void endContact(Contact contact) {
+            }
+
+            @Override
+            public void preSolve(Contact contact, Manifold oldManifold) {
+            }
+
+            @Override
+            public void postSolve(Contact contact, ContactImpulse impulse) {
+            }
+        });
+
+       
         createEdges();
         createPaddle();
+        createBall();
         createBricks();
     }
 
@@ -95,7 +140,62 @@ public class Game implements Screen {
 
     @Override
     public void render(float delta) {
-     
+        
+        if (resetBall) {
+            //TODO sometimes ball falls/rises slowly after reset
+            ball.setScreenPosition(
+                    (Gdx.graphics.getWidth() / 2) - (ball.sprite.getWidth() / 2),
+                    100,
+                    0);
+            ball.body.setAngularVelocity(0);
+            ball.body.setLinearVelocity(0, 0);
+            ball.body.setAwake(false);// TODO did this fix it?
+            resetBall = false;
+            ballStarted = false;
+        }
+
+
+        // HANDLE INPUT
+        if (Gdx.input.isTouched()) {
+
+            mouse = true;
+        }
+        if (Gdx.input.getDeltaX() != 0) {
+            mouse = true;
+        }
+
+        if (Gdx.input.isKeyPressed(Keys.LEFT)) {
+            paddle.body.applyForceToCenter(-1f, 0f, true);
+            mouse = false;
+        } else if (Gdx.input.isKeyPressed(Keys.RIGHT)) {
+            paddle.body.applyForceToCenter(1f, 0f, true);
+            mouse = false;
+        } else if (mouse) {
+            float mousex = Gdx.input.getX() / WORLD_SCALE;
+            float padx = paddle.body.getPosition().x;
+            paddle.body.applyForceToCenter(mousex - padx, 0f, true);
+        }
+
+       
+       if (!ballStarted
+                && (Gdx.input.isKeyJustPressed(Keys.SPACE)
+                || Gdx.input.justTouched())) {
+            ball.body.applyForceToCenter(
+                    (float) (((Math.random() * 2) - 1) / 10),
+                    (float) (((Math.random() * 2) - 1) / 10),
+                    true);
+            ball.body.applyAngularImpulse(
+                    (float) (((Math.random() * 2) - 1) / 1000),
+                    true);
+            ballStarted = true;
+        }
+
+        // UPDATE PHYSICS
+        world.step(delta, 6, 2);
+
+
+        // destroy any collided bricks
+        //commit 2
          while (toBeDestroyed.size != 0) {
             PhysicalSprite dead = toBeDestroyed.first();
             toBeDestroyed.removeIndex(0);
@@ -116,8 +216,40 @@ public class Game implements Screen {
             return;
         }
 
-        paddle.update();
-        
+
+       
+
+       if (ballStarted) {
+            Vector2 ballVel = ball.body.getLinearVelocity();
+            if (Math.abs(ballVel.x) < BALL_SENTINEL) {
+                if (ballVel.x == 0f) {
+                    ball.body.applyForceToCenter(BALL_SENTINEL, 0, true);
+                } else {
+                    ball.body.applyForceToCenter(
+                            BALL_SENTINEL * Math.signum(ballVel.x), 0, true);
+                }
+            }
+            if (Math.abs(ballVel.y) < BALL_SENTINEL) {
+                if (ballVel.y == 0f) {
+                    ball.body.applyForceToCenter(
+                            0, BALL_SENTINEL, true);
+                } else {
+                    ball.body.applyForceToCenter(
+                            0, BALL_SENTINEL * Math.signum(ballVel.y), true);
+                }
+            }
+            if (ball.body.getAngularVelocity() == 0.0f) {
+                ball.body.applyAngularImpulse(
+                        (float) (((Math.random() * 2) - 1) / 1000),
+                        true);
+            }
+        }
+
+       
+
+        paddle.update();    
+        ball.update();
+     
         for (PhysicalSprite brick : bricks) {
             brick.update();
         }
@@ -128,7 +260,9 @@ public class Game implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         game.batch.begin();
         game.batch.draw(background, back.getX(), back.getY());
-        paddle.draw(game.batch);
+        paddle.draw(game.batch);        
+         ball.draw(game.batch);
+
         for (PhysicalSprite brick : bricks) {
             brick.draw(game.batch);
 
@@ -159,7 +293,10 @@ public class Game implements Screen {
     @Override
     public void dispose() {
        
+        padTex.dispose();
+        ballTex.dispose();
         brickTex.dispose();
+        world.dispose();
         background.dispose();
 
     }
@@ -170,7 +307,7 @@ public class Game implements Screen {
         int brickHeight = brickTex.getHeight();
         brickWidth += brickHPad * 2;
         brickHeight += brickVPad * 2;
-        // number of rows and columns of bricks that can be made
+       
         int numCols = screenWidth / brickWidth;
         int numRows = (screenHeight - areaPad) / brickHeight;
 
@@ -214,7 +351,25 @@ public class Game implements Screen {
         paddle.body.setLinearDamping(2.0f);
     }
 
- 
+    
+    private void createBall() {
+        float x = screenWidth / 2;
+        float y = 100;
+
+        PhysicalSprite.Defs defs = PhysicalSprite.Defs.fromScreenCoordinates(
+                ballTex, x, y, WORLD_SCALE);
+
+        defs.bodyDef.type = BodyType.DynamicBody;
+
+        defs.fixtureDef.friction = 0;
+        defs.fixtureDef.density = 0.1f;
+        defs.fixtureDef.restitution = 1f;
+        defs.fixtureDef.filter.categoryBits = BALL;
+        defs.fixtureDef.filter.maskBits = (PADDLE | BRICK | WORLD_BOUND | BALL_KILLER);
+
+        ball = new PhysicalSprite(defs, world);
+    }
+
 
    
     private void createEdges() {

@@ -36,14 +36,12 @@ public class HomePage implements Screen {
         game.batch.begin();
         game.batch.draw(backgroundImage, backgroundImage.getX(), backgroundImage.getY());
         game.batch.end();
-
-
-        //commit 2
-       /* if (Gdx.input.justTouched() || Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
+       
+       if (Gdx.input.justTouched() || Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
             game.setScreen(new Game(game));
             dispose();
         }
-      */
+     
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             Gdx.app.exit();
