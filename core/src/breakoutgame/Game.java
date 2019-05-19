@@ -164,6 +164,13 @@ public class Game implements Screen {
             mouse = true;
         }
 
+
+     
+        if (Gdx.input.isKeyJustPressed(Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Keys.ENTER)) {
+            game.setScreen(new PausedPage(game, this));
+        }
+
+      
         if (Gdx.input.isKeyPressed(Keys.LEFT)) {
             paddle.body.applyForceToCenter(-1f, 0f, true);
             mouse = false;
@@ -195,7 +202,7 @@ public class Game implements Screen {
 
 
         // destroy any collided bricks
-        //commit 2
+        
          while (toBeDestroyed.size != 0) {
             PhysicalSprite dead = toBeDestroyed.first();
             toBeDestroyed.removeIndex(0);
