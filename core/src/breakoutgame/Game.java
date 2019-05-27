@@ -152,6 +152,13 @@ public class Game implements Screen {
             ball.body.setAwake(false);// TODO did this fix it?
             resetBall = false;
             ballStarted = false;
+
+
+          if (lives-- == 0) {
+                game.setScreen(new GameOver(game, score));
+                dispose();
+                return;
+            }
         }
 
 
